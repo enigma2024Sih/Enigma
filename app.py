@@ -490,7 +490,7 @@ for i in range(num_files_required):
     uploaded_files.append(file)
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("**Developed by Your Name**")  # Add your name or branding
+st.sidebar.markdown("**Developed by Enigma**")  # Add your name or branding
 
 if None not in uploaded_files:
     # Load all files into dataframes
