@@ -5,14 +5,14 @@ from datetime import datetime, timedelta
 
 
 def function_1(df):
+    # Load the dataset from the uploaded file
+
     # Get today's date for reference
     today = datetime.today().date()
 
     # Define the peak and off-peak times
     peak_start = datetime.combine(today, datetime.strptime("08:00", '%H:%M').time())
     peak_end = datetime.combine(today, datetime.strptime("10:00", '%H:%M').time())
-    off_peak_start = datetime.combine(today, datetime.strptime("10:00", '%H:%M').time())
-    off_peak_end = datetime.combine(today, datetime.strptime("18:00", '%H:%M').time())
 
     # Convert 'Start Time' and 'End Time' to datetime objects without the date component
     df['Start Time'] = pd.to_datetime(df['Start Time'], format='%H:%M').dt.time
@@ -43,33 +43,49 @@ def function_1(df):
 
     # Define in-city and out-city areas
     in_city_areas = [
-        'Connaught Place', 'Delhi University', 'Kashmiri Gate', 'Rajiv Chowk',
-        'Karol Bagh', 'Vikas Marg', 'Mayur Vihar', 'Hauz Khas', 'Saket',
-        'Lajpat Nagar', 'Mandi House', 'India Gate', 'Paharganj',
-        'New Delhi Railway Station', 'Jangpura', 'Chandni Chowk', 'Old Delhi Railway Station'
+        "Anand Vihar ISBT (Viveka Nand ISBT) - Punjabi Bagh Terminal",
+        "Anand Vihar ISBT (Viveka Nand ISBT) - Hari Nagar Clock Tower",
+        "Anand Vihar ISBT (Viveka Nand ISBT) - Rajghat Cluster Depot",
+        "ISBT / Kashmiri Gate - Inder Puri JJ Colony",
+        "Karampura Terminal - Noida Sector 34 U.P. Roadways Terminal",
+        "Shivaji Stadium - Mundka"
     ]
 
-    out_city_areas = ['Dwarka Sector 21', 'Akshardham', 'Rohini Sector 15']
+    out_city_areas = [
+        "ISBT / Kashmiri Gate - Najafgarh",
+        "New Delhi Railway Station Gate 2 - Dwarka More Metro Station",
+        "New Delhi Railway Station Gate 2 - Dwarka Sector 23",
+        "Badarpur Border - Shashi Chowk / Sector 36/37 Noida",
+        "Chauhan Patti - Anand Vihar ISBT (Viveka Nand ISBT)",
+        "Dilshad Garden Depot (New Seemapuri) - Mayur Vihar Phase III Terminal / Paper Market",
+        "New Delhi Railway Station Gate 2 - Dwarka Sector 14 Metro Station"
+    ]
 
     # Function to reallocate buses from out-city to in-city areas during peak hours
     def reallocate_buses(row):
-        start_time = datetime.combine(today, row['Start Time'])
-        if row['Journey Type'] == 'Forward' and row['Source'] in out_city_areas:
-            if peak_start.time() <= row['Start Time'] <= peak_end.time():
-                old_source = row['Source']
-                new_source = in_city_areas[row.name % len(in_city_areas)]
-                new_destination = in_city_areas[(row.name + 1) % len(in_city_areas)]
-                
-                # Update the DataFrame
-                df.at[row.name, 'Source'] = new_source
-                df.at[row.name, 'Destination'] = new_destination
-                
+        start_datetime = datetime.combine(today, row['Start Time'])
+        
+        if row['Source'] in out_city_areas and peak_start.time() <= row['Start Time'] <= peak_end.time():
+            old_source = row['Source']
+            new_source = in_city_areas[row.name % len(in_city_areas)]
+            new_destination = in_city_areas[(row.name + 1) % len(in_city_areas)]
+            
+            # Update the DataFrame
+            df.at[row.name, 'Source'] = new_source
+            df.at[row.name, 'Destination'] = new_destination
+            
+            # Print the reallocation details
+            #print(f"Reallocated bus route from {old_source} to {new_source}. New destination: {new_destination}.")
         return row
 
     # Apply the reallocation
     df = df.apply(reallocate_buses, axis=1)
 
-    # Return the updated DataFrame
+    # Display the adjusted schedule, focusing on important columns
+    df[['Route No.', 'Source', 'Destination', 'Handover Point', 'Adjusted Start Time', 'Adjusted End Time']]
+
+    # Save the updated schedule to a new csv file
+    output_path = 'bus_schedule.csv'
     return df
 
 def function_2(df1,df2):
@@ -135,8 +151,8 @@ def function_2(df1,df2):
                             'Source': bus['Source'],
                             'Destination': bus['Destination'],
                             'Trip Type': 'Forward',
-                            'Shift Start': forward_start.strftime("%H:%M:%S"),
-                            'Shift End': forward_end.strftime("%H:%M:%S")
+                            'Start Time': forward_start.strftime("%H:%M:%S"),
+                            'End Time': forward_end.strftime("%H:%M:%S")
                         })
                         
                         # Return trip assignment
@@ -148,8 +164,8 @@ def function_2(df1,df2):
                             'Source': bus['Destination'],
                             'Destination': bus['Source'],
                             'Trip Type': 'Return',
-                            'Shift Start': return_start.strftime("%H:%M:%S"),
-                            'Shift End': return_end.strftime("%H:%M:%S")
+                            'Start Time': return_start.strftime("%H:%M:%S"),
+                            'End Time': return_end.strftime("%H:%M:%S")
                         })
 
                         assigned_employees.add(crew['EmpID'])  # Mark employee as assigned for the day
@@ -170,8 +186,8 @@ def function_2(df1,df2):
             if len(emp_trips) < 4:
                 remaining_trips = 4 - len(emp_trips)
                 
-                # Check the latest shift end
-                latest_shift_end = pd.to_datetime(emp_trips['Shift End'].max())
+                # Check the latest End Time
+                latest_shift_end = pd.to_datetime(emp_trips['End Time'].max())
                 
                 # Add morning trips if needed
                 if remaining_trips > 0:
@@ -187,8 +203,8 @@ def function_2(df1,df2):
                                 'Source': emp_trips['Source'].iloc[0],
                                 'Destination': emp_trips['Destination'].iloc[0],
                                 'Trip Type': 'Forward',
-                                'Shift Start': forward_start.strftime("%H:%M:%S"),
-                                'Shift End': forward_end.strftime("%H:%M:%S")
+                                'Start Time': forward_start.strftime("%H:%M:%S"),
+                                'End Time': forward_end.strftime("%H:%M:%S")
                             })
                             extended_assignments.append({
                                 'EmpID': emp_id,
@@ -198,8 +214,8 @@ def function_2(df1,df2):
                                 'Source': emp_trips['Destination'].iloc[0],
                                 'Destination': emp_trips['Source'].iloc[0],
                                 'Trip Type': 'Return',
-                                'Shift Start': return_start.strftime("%H:%M:%S"),
-                                'Shift End': return_end.strftime("%H:%M:%S")
+                                'Start Time': return_start.strftime("%H:%M:%S"),
+                                'End Time': return_end.strftime("%H:%M:%S")
                             })
                             remaining_trips -= 1
                             current_time = return_end + GAP_BETWEEN_TRIPS
@@ -220,8 +236,8 @@ def function_2(df1,df2):
                                 'Source': emp_trips['Source'].iloc[0],
                                 'Destination': emp_trips['Destination'].iloc[0],
                                 'Trip Type': 'Forward',
-                                'Shift Start': forward_start.strftime("%H:%M:%S"),
-                                'Shift End': forward_end.strftime("%H:%M:%S")
+                                'Start Time': forward_start.strftime("%H:%M:%S"),
+                                'End Time': forward_end.strftime("%H:%M:%S")
                             })
                             extended_assignments.append({
                                 'EmpID': emp_id,
@@ -231,8 +247,8 @@ def function_2(df1,df2):
                                 'Source': emp_trips['Destination'].iloc[0],
                                 'Destination': emp_trips['Source'].iloc[0],
                                 'Trip Type': 'Return',
-                                'Shift Start': return_start.strftime("%H:%M:%S"),
-                                'Shift End': return_end.strftime("%H:%M:%S")
+                                'Start Time': return_start.strftime("%H:%M:%S"),
+                                'End Time': return_end.strftime("%H:%M:%S")
                             })
                             remaining_trips -= 1
                             current_time = return_end + GAP_BETWEEN_TRIPS
@@ -260,13 +276,13 @@ def function_2(df1,df2):
 
 def function_3(df1,df2):
     bus_types = ['AC', 'Non-AC', 'Electric']
+
     long_routes = ['85 Cluster', '73 Cluster', '33A', '33LSTL', 'GL32']
 
-
-    def calculate_shift_times(start_time, bus_type):
+    def calculate_shift_times(start_time, bus_type, trip_number):
         forward_duration = pd.Timedelta(minutes=80)
         return_duration = pd.Timedelta(minutes=80)
-        forward_start = pd.to_datetime(start_time)
+        forward_start = pd.to_datetime(start_time) + pd.Timedelta(minutes=(trip_number - 1) * 180)  # Adjust start for each trip
         forward_end = forward_start + forward_duration
         return_start = forward_end + pd.Timedelta(minutes=10)  # 10-minute break
         return_end = return_start + return_duration
@@ -302,6 +318,7 @@ def function_3(df1,df2):
             'RL75': 'RL75'
         }
         
+        # Repeat the process for 2 morning and 2 evening shifts
         for bus_type in bus_types:
             for bus_index, bus in busDF.iterrows():
                 route = bus['Route No.']
@@ -319,133 +336,107 @@ def function_3(df1,df2):
                 
                 X = available_crews.iloc[0]
                 Y = available_crews.iloc[1]
-                
-                forward_start, forward_end, return_start, return_end = calculate_shift_times(start_time, bus_type)
-                
-                if not is_within_shift_limit(forward_start, return_end):
-                    continue
 
-                # Assign Forward Trip
-                assignments.append({
-                    'EmpID': X['EmpID'],
-                    'Name': X['Name'],
-                    'Route No.': route,
-                    'Bus Type': bus_type,
-                    'Source': bus_source,
-                    'Destination': bus_destination,
-                    'Trip Type': 'Initial Forward',
-                    'Shift Start': forward_start.strftime("%H:%M:%S"),
-                    'Shift End': forward_end.strftime("%H:%M:%S"),
-                    'Handover To': None,
-                    'Handover Point': shift_handover_point
-                })
-                
-                assignments.append({
-                    'EmpID': Y['EmpID'],
-                    'Name': Y['Name'],
-                    'Route No.': reverse_route_map.get(route, route),
-                    'Bus Type': bus_type,
-                    'Source': bus_destination,
-                    'Destination': bus_source,
-                    'Trip Type': 'Initial Forward',
-                    'Shift Start': forward_start.strftime("%H:%M:%S"),
-                    'Shift End': forward_end.strftime("%H:%M:%S"),
-                    'Handover To': None,
-                    'Handover Point': shift_handover_point
-                })
+                # Schedule 4 trips (2 morning + 2 evening)
+                for trip_number in range(1, 5):
+                    forward_start, forward_end, return_start, return_end = calculate_shift_times(start_time, bus_type, trip_number)
 
-                # Handover
-                assignments.append({
-                    'EmpID': X['EmpID'],
-                    'Name': X['Name'],
-                    'Route No.': 'Handover',
-                    'Bus Type': None,
-                    'Source': None,
-                    'Destination': None,
-                    'Trip Type': 'Handover',
-                    'Shift Start': forward_end.strftime("%H:%M:%S"),
-                    'Shift End': (forward_end + pd.Timedelta(minutes=10)).strftime("%H:%M:%S"),
-                    'Handover To': Y['Name'],
-                    'Handover Point': shift_handover_point
-                })
-                
-                assignments.append({
-                    'EmpID': Y['EmpID'],
-                    'Name': Y['Name'],
-                    'Route No.': 'Handover',
-                    'Bus Type': None,
-                    'Source': None,
-                    'Destination': None,
-                    'Trip Type': 'Handover',
-                    'Shift Start': forward_end.strftime("%H:%M:%S"),
-                    'Shift End': (forward_end + pd.Timedelta(minutes=10)).strftime("%H:%M:%S"),
-                    'Handover To': X['Name'],
-                    'Handover Point': shift_handover_point
-                })
+                    if not is_within_shift_limit(forward_start, return_end):
+                        continue
 
-                # Return Trip
-                assignments.append({
-                    'EmpID': Y['EmpID'],
-                    'Name': Y['Name'],
-                    'Route No.': route,
-                    'Bus Type': bus_type,
-                    'Source': bus_destination,
-                    'Destination': bus_source,
-                    'Trip Type': 'Return Forward',
-                    'Shift Start': return_start.strftime("%H:%M:%S"),
-                    'Shift End': return_end.strftime("%H:%M:%S"),
-                    'Handover To': None,
-                    'Handover Point': shift_handover_point
-                })
-                
-                assignments.append({
-                    'EmpID': X['EmpID'],
-                    'Name': X['Name'],
-                    'Route No.': reverse_route_map.get(route, route),
-                    'Bus Type': bus_type,
-                    'Source': bus_source,
-                    'Destination': bus_destination,
-                    'Trip Type': 'Return Forward',
-                    'Shift Start': return_start.strftime("%H:%M:%S"),
-                    'Shift End': return_end.strftime("%H:%M:%S"),
-                    'Handover To': None,
-                    'Handover Point': shift_handover_point
-                })
+                    trip_type = "Morning" if trip_number <= 2 else "Evening"
 
-                # Final Trip
-                assignments.append({
-                    'EmpID': X['EmpID'],
-                    'Name': X['Name'],
-                    'Route No.': route,
-                    'Bus Type': bus_type,
-                    'Source': bus_source,
-                    'Destination': bus_destination,
-                    'Trip Type': 'Final Forward',
-                    'Shift Start': return_end.strftime("%H:%M:%S"),
-                    'Shift End': (return_end + pd.Timedelta(minutes=80)).strftime("%H:%M:%S"),
-                    'Handover To': None,
-                    'Handover Point': shift_handover_point
-                })
-                
-                assignments.append({
-                    'EmpID': Y['EmpID'],
-                    'Name': Y['Name'],
-                    'Route No.': reverse_route_map.get(route, route),
-                    'Bus Type': bus_type,
-                    'Source': bus_destination,
-                    'Destination': bus_source,
-                    'Trip Type': 'Final Forward',
-                    'Shift Start': return_end.strftime("%H:%M:%S"),
-                    'Shift End': (return_end + pd.Timedelta(minutes=80)).strftime("%H:%M:%S"),
-                    'Handover To': None,
-                    'Handover Point': shift_handover_point
-                })
+                    # Assign Forward Trip
+                    assignments.append({
+                        'EmpID': X['EmpID'],
+                        'Name': X['Name'],
+                        'Route No.': route,
+                        'Bus Type': bus_type,
+                        'Source': bus_source,
+                        'Destination': bus_destination,
+                        'Trip Type': f'{trip_type} Forward',
+                        'Start Time': forward_start.strftime("%H:%M:%S"),
+                        'End Time': forward_end.strftime("%H:%M:%S"),
+                        'Handover To': None,
+                        'Handover Point': shift_handover_point
+                    })
+                    
+                    assignments.append({
+                        'EmpID': Y['EmpID'],
+                        'Name': Y['Name'],
+                        'Route No.': reverse_route_map.get(route, route),
+                        'Bus Type': bus_type,
+                        'Source': bus_destination,
+                        'Destination': bus_source,
+                        'Trip Type': f'{trip_type} Forward',
+                        'Start Time': forward_start.strftime("%H:%M:%S"),
+                        'End Time': forward_end.strftime("%H:%M:%S"),
+                        'Handover To': None,
+                        'Handover Point': shift_handover_point
+                    })
+
+                    # Handover
+                    assignments.append({
+                        'EmpID': X['EmpID'],
+                        'Name': X['Name'],
+                        'Route No.': 'Handover',
+                        'Bus Type': None,
+                        'Source': None,
+                        'Destination': None,
+                        'Trip Type': f'{trip_type} Handover',
+                        'Start Time': forward_end.strftime("%H:%M:%S"),
+                        'End Time': (forward_end + pd.Timedelta(minutes=10)).strftime("%H:%M:%S"),
+                        'Handover To': Y['Name'],
+                        'Handover Point': shift_handover_point
+                    })
+                    
+                    assignments.append({
+                        'EmpID': Y['EmpID'],
+                        'Name': Y['Name'],
+                        'Route No.': 'Handover',
+                        'Bus Type': None,
+                        'Source': None,
+                        'Destination': None,
+                        'Trip Type': f'{trip_type} Handover',
+                        'Start Time': forward_end.strftime("%H:%M:%S"),
+                        'End Time': (forward_end + pd.Timedelta(minutes=10)).strftime("%H:%M:%S"),
+                        'Handover To': X['Name'],
+                        'Handover Point': shift_handover_point
+                    })
+
+                    # Return Trip
+                    assignments.append({
+                        'EmpID': Y['EmpID'],
+                        'Name': Y['Name'],
+                        'Route No.': route,
+                        'Bus Type': bus_type,
+                        'Source': bus_destination,
+                        'Destination': bus_source,
+                        'Trip Type': f'{trip_type} Return Forward',
+                        'Start Time': return_start.strftime("%H:%M:%S"),
+                        'End Time': return_end.strftime("%H:%M:%S"),
+                        'Handover To': None,
+                        'Handover Point': shift_handover_point
+                    })
+                    
+                    assignments.append({
+                        'EmpID': X['EmpID'],
+                        'Name': X['Name'],
+                        'Route No.': reverse_route_map.get(route, route),
+                        'Bus Type': bus_type,
+                        'Source': bus_source,
+                        'Destination': bus_destination,
+                        'Trip Type': f'{trip_type} Return Forward',
+                        'Start Time': return_start.strftime("%H:%M:%S"),
+                        'End Time': return_end.strftime("%H:%M:%S"),
+                        'Handover To': None,
+                        'Handover Point': shift_handover_point
+                    })
 
                 assigned_employees.update([X['EmpID'], Y['EmpID']])
             
         schedule_df = pd.DataFrame(assignments)
         return schedule_df
-
 
 
     # Example Usage
@@ -459,19 +450,48 @@ def function_3(df1,df2):
     long_route_buses = busDF[busDF['Route No.'].isin(long_routes)]
 
     schedule_df = assign_routes_and_schedule(long_route_buses, reserved_long_crew)
+    #print(schedule_df)
     return schedule_df
 
 # Mapping function names to actual functions
 function_map = {
-    "BUS SCHEDULING": (function_1, 1),
+    "FLEET SCHEDULING": (function_1, 1),
     "LINKED DUTY SCHEDULING": (function_2, 2),
     "UNLINKED DUTY SCHEDULING": (function_3, 2)  # Both require two files
 }
 
-# Streamlit app
-st.set_page_config(page_title="CSV Processor App", page_icon="📊", layout="wide")  # Set page configuration
+list = ["BUS","CREW"]
 
-st.title("📊 CSV Processor App")
+# Streamlit app
+st.set_page_config(page_title="DTC", page_icon="./logo/DTC-ICON.png", layout="wide")  # Set page configuration
+
+# Custom CSS to center the image in the sidebar
+st.markdown(
+    """
+    <html>
+        <div >
+        </div>
+    </html>
+    <style>
+        [data-testid="stSidebar"] [data-testid="stImage"] {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            margin: auto;
+        }
+    </style>
+    """, unsafe_allow_html=True
+)
+
+# Display the image in the sidebar
+with st.sidebar:
+    st.image("./images/BIG-LOGO-modified (1).png",width= 170)
+
+
+# image = "./big-logo-final.png"
+# # Display the image with a custom width
+# st.sidebar.image(image, width=150)
+st.title(" DTC FLEET AND CREW MANAGEMENT")
 
 st.sidebar.header("Upload Your File(s) and Select Function")  # Sidebar header
 
@@ -486,11 +506,12 @@ uploaded_files = []
 
 # Handling multiple file uploads
 for i in range(num_files_required):
-    file = st.sidebar.file_uploader(f"Upload CSV file {i+1}", type="csv", key=f"file_uploader_{i+1}")
+    file = st.sidebar.file_uploader(f"Upload {list[i]} CSV file ", type="csv", key=f"file_uploader_{i+1}")
     uploaded_files.append(file)
 
 st.sidebar.markdown("---")
-st.sidebar.markdown("**Developed by Enigma**")  # Add your name or branding
+st.sidebar.markdown("**Developed by Engima**")  # Add your name or branding
+st.sidebar.markdown("*Version 0.1*") 
 
 if None not in uploaded_files:
     # Load all files into dataframes
