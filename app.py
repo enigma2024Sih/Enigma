@@ -463,7 +463,7 @@ function_map = {
 list = ["BUS","CREW"]
 
 # Streamlit app
-st.set_page_config(page_title="DTC", page_icon="./logo/DTC-ICON.png", layout="wide")  # Set page configuration
+st.set_page_config(page_title="DTC", page_icon="./DTC-ICON.png", layout="wide")  # Set page configuration
 
 # Custom CSS to center the image in the sidebar
 st.markdown(
@@ -485,7 +485,7 @@ st.markdown(
 
 # Display the image in the sidebar
 with st.sidebar:
-    st.image("./images/BIG-LOGO-modified (1).png",width= 170)
+    st.image("./BIG-LOGO-modified (1).png",width= 170)
 
 
 # image = "./big-logo-final.png"
